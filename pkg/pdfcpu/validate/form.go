@@ -283,6 +283,11 @@ func cacheSig(xRefTable *model.XRefTable, d types.Dict, dictName string, form bo
 	r := types.RectForArray(arr)
 	sig.Visible = r.Visible() && !dts
 
+	// Ensure Signatures map is initialized
+	if xRefTable.Signatures == nil {
+		xRefTable.Signatures = map[int]map[int]model.Signature{}
+	}
+	
 	if _, ok := xRefTable.Signatures[incr]; !ok {
 		xRefTable.Signatures[incr] = map[int]model.Signature{}
 	}
