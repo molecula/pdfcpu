@@ -141,7 +141,6 @@ func (d Dict) Entry(dictName, key string, required bool) (Object, bool, error) {
 		}
 		return nil, false, nil
 	}
-
 	if obj == nil {
 		if required {
 			return nil, true, errors.Errorf("dict=%s required entry=%s corrupt", dictName, key)

@@ -65,7 +65,13 @@ func validateEntry(xRefTable *model.XRefTable, d types.Dict, dictName, entryName
 	return o, nil
 }
 
-func validateArrayEntry(xRefTable *model.XRefTable, d types.Dict, dictName, entryName string, required bool, sinceVersion model.Version, validate func(types.Array) bool) (types.Array, error) {
+func validateArrayEntry(
+	xRefTable *model.XRefTable,
+	d types.Dict,
+	dictName, entryName string,
+	required bool,
+	sinceVersion model.Version,
+	validate func(types.Array) bool) (types.Array, error) {
 	if log.ValidateEnabled() {
 		log.Validate.Printf("validateArrayEntry begin: entry=%s\n", entryName)
 	}
@@ -98,7 +104,6 @@ func validateArrayEntry(xRefTable *model.XRefTable, d types.Dict, dictName, entr
 	if !ok {
 		return nil, errors.Errorf("validateArrayEntry: dict=%s entry=%s invalid type %T", dictName, entryName, o)
 	}
-
 	// Validation
 	if validate != nil && !validate(a) {
 		return nil, errors.Errorf("validateArrayEntry: dict=%s entry=%s invalid dict entry", dictName, entryName)
