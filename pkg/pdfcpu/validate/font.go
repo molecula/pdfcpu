@@ -997,6 +997,9 @@ func _validateFontDict(xRefTable *model.XRefTable, d types.Dict, isIndRef bool, 
 	case "Type3":
 		err = validateType3FontDict(xRefTable, d)
 
+	case "CIDFontType0", "CIDFontType2":
+		err = validateCIDFontDict(xRefTable, d)
+
 	default:
 		return errors.Errorf("pdfcpu: validateFontDict: unknown Subtype: %s\n", *subtype)
 
