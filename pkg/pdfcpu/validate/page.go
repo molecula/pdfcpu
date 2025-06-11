@@ -1135,6 +1135,10 @@ func repairPagesDict(xRefTable *model.XRefTable, obj types.Object, rootDict type
 func validatePages(xRefTable *model.XRefTable, rootDict types.Dict) (types.Dict, error) {
 	obj, found := rootDict.Find("Pages")
 	if !found {
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, try to create a minimal page tree if missing
+			return types.NewDict(), nil
+		}
 		return nil, errors.New("pdfcpu: validatePages: missing \"Pages\"")
 	}
 
@@ -1171,6 +1175,10 @@ func validatePages(xRefTable *model.XRefTable, rootDict types.Dict) (types.Dict,
 
 	obj, found = pageRoot.Find("Count")
 	if !found {
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, we can proceed without count validation
+			return pageRoot, nil
+		}
 		return nil, errors.New("pdfcpu: validatePages: missing \"Count\" in page root dict")
 	}
 

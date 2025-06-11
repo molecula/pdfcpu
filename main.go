@@ -20,6 +20,7 @@ func main() {
 
 	conf := model.NewDefaultConfiguration()
 	conf.OptimizeResourceDicts = false
+	conf.ValidationMode = model.ValidationRelaxed
 
 	// Trim to the first 10 pages (1-10)
 	err := api.TrimFile(inFile, outFile, []string{"1-5"}, conf)

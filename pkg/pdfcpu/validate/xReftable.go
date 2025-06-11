@@ -1081,7 +1081,11 @@ func validateRootObject(ctx *model.Context) error {
 	}
 
 	// Type
-	_, err = validateNameEntry(xRefTable, d, "rootDict", "Type", REQUIRED, model.V10, func(s string) bool { return s == "Catalog" })
+	required := REQUIRED
+	if xRefTable.ValidationMode == model.ValidationRelaxed {
+		required = OPTIONAL
+	}
+	_, err = validateNameEntry(xRefTable, d, "rootDict", "Type", required, model.V10, func(s string) bool { return s == "Catalog" })
 	if err != nil {
 		return err
 	}
