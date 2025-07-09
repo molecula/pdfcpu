@@ -21,8 +21,10 @@ func main() {
 	conf := model.NewDefaultConfiguration()
 	conf.OptimizeResourceDicts = false
 	conf.ValidationMode = model.ValidationRelaxed
+	conf.Offline = true
+	conf.Optimize = false
 
-	// Trim to the first 10 pages (1-10)
+	// Trim to the first 5 pages (1-5)
 	err := api.TrimFile(inFile, outFile, []string{"1-5"}, conf)
 	if err != nil {
 		log.Fatalf("Error extracting pages: %v", err)
