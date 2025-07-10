@@ -281,6 +281,13 @@ func validateDateEntry(xRefTable *model.XRefTable, d types.Dict, dictName, entry
 
 	time, ok := types.DateTime(s, xRefTable.ValidationMode == model.ValidationRelaxed)
 	if !ok {
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, if date parsing fails, return nil instead of error
+			if log.ValidateEnabled() {
+				log.Validate.Printf("validateDateEntry: skipping malformed date in relaxed mode: <%s>\n", s)
+			}
+			return nil, nil
+		}
 		return nil, errors.Errorf("pdfcpu: validateDateEntry: <%s> invalid date", s)
 	}
 
