@@ -348,7 +348,6 @@ func validateFloat(xRefTable *model.XRefTable, o types.Object, validate func(flo
 	if log.ValidateEnabled() {
 		log.Validate.Println("validateFloat begin")
 	}
-
 	o, err := xRefTable.Dereference(o)
 	if err != nil {
 		return nil, err
@@ -871,6 +870,13 @@ func validateNumberEntry(xRefTable *model.XRefTable, d types.Dict, dictName, ent
 	}
 
 	if validate != nil && !validate(f) {
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, if date parsing fails, return nil instead of error
+			if log.ValidateEnabled() {
+				log.Validate.Printf("pdfcpu: validateFloatEntry: dict=%s entry=%s invalid dict entry", dictName, entryName)
+			}
+			return nil, nil
+		}
 		return nil, errors.Errorf("pdfcpu: validateFloatEntry: dict=%s entry=%s invalid dict entry", dictName, entryName)
 	}
 
