@@ -726,6 +726,13 @@ func validateNameEntry(xRefTable *model.XRefTable, d types.Dict, dictName, entry
 	// Validation
 	v := name.Value()
 	if validate != nil && (required || len(v) > 0) && !validate(v) {
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, if date parsing fails, return nil instead of error
+			if log.ValidateEnabled() {
+				log.Validate.Printf("pdfcpu: validateNameEntry: dict=%s entry=%s invalid dict entry: %s", dictName, entryName, v)
+			}
+			return nil, nil
+		}
 		return &name, errors.Errorf("pdfcpu: validateNameEntry: dict=%s entry=%s invalid dict entry: %s", dictName, entryName, v)
 	}
 
