@@ -48,11 +48,16 @@ func validateOutlineItemDict(xRefTable *model.XRefTable, d types.Dict) error {
 	// Parent, required, dict indRef
 	ir, err := validateIndRefEntry(xRefTable, d, dictName, "Parent", REQUIRED, model.V10)
 	if err != nil {
-		return err
-	}
-	_, err = xRefTable.DereferenceDict(*ir)
-	if err != nil {
-		return err
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			model.ShowDigestedSpecViolation("outlineItemDict missing required Parent entry")
+		} else {
+			return err
+		}
+	} else if ir != nil {
+		_, err = xRefTable.DereferenceDict(*ir)
+		if err != nil {
+			return err
+		}
 	}
 
 	// // Count, optional, int
