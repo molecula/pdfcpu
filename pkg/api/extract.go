@@ -350,6 +350,53 @@ func FastExtractPage(inFile, outFile string, selectedPages []string, conf *model
 	return WriteContextFile(ctxDest, outFile)
 }
 
+// FastExtractPages generates a trimmed version of rs containing all selected pages and writes the result to w,
+// optimized for speed by skipping optimization and post-process validation.
+func FastExtractPages(rs io.ReadSeeker, w io.Writer, selectedPages []string, conf *model.Configuration) error {
+	if rs == nil {
+		return errors.New("pdfcpu: FastExtractPages: missing rs")
+	}
+
+	if conf == nil {
+		conf = model.NewDefaultConfiguration()
+	}
+	conf.Cmd = model.EXTRACTPAGES
+	conf.Optimize = false
+	conf.PostProcessValidate = false
+
+	ctx, err := ReadAndValidate(rs, conf)
+	if err != nil {
+		return err
+	}
+
+	pages, err := PagesForPageSelection(ctx.PageCount, selectedPages, false, true)
+	if err != nil {
+		return err
+	}
+
+	if len(pages) == 0 {
+		if log.CLIEnabled() {
+			log.CLI.Println("aborted: missing page numbers!")
+		}
+		return nil
+	}
+
+	var pageNrs []int
+	for k, v := range pages {
+		if v {
+			pageNrs = append(pageNrs, k)
+		}
+	}
+	sort.Ints(pageNrs)
+
+	ctxDest, err := pdfcpu.ExtractPages(ctx, pageNrs, false)
+	if err != nil {
+		return err
+	}
+
+	return WriteContext(ctxDest, w)
+}
+
 // ExtractContent dumps "PDF source" files from rs into outDir for selected pages.
 func ExtractContent(rs io.ReadSeeker, outDir, fileName string, selectedPages []string, conf *model.Configuration) error {
 	if rs == nil {
