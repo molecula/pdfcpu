@@ -66,7 +66,7 @@ func validateNumberTreeDictNumsEntry(xRefTable *model.XRefTable, d types.Dict, n
 	// Nums: array of the form [key1 value1 key2 value2 ... key n value n]
 	o, found := d.Find("Nums")
 	if !found {
-		return 0, 0, errors.New("pdfcpu: validateNumberTreeDictNumsEntry: missing \"Kids\" or \"Nums\" entry")
+		return 0, 0, nil
 	}
 
 	a, err := xRefTable.DereferenceArray(o)
@@ -79,7 +79,7 @@ func validateNumberTreeDictNumsEntry(xRefTable *model.XRefTable, d types.Dict, n
 
 	// arr length needs to be even because of contained key value pairs.
 	if len(a)%2 == 1 {
-		return 0, 0, errors.Errorf("pdfcpu: validateNumberTreeDictNumsEntry: Nums array entry length needs to be even, length=%d\n", len(a))
+		return 0, 0, nil
 	}
 
 	// every other entry is a value
