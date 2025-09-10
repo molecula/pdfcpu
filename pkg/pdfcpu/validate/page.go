@@ -281,7 +281,7 @@ func validatePageEntryRotate(xRefTable *model.XRefTable, d types.Dict, required 
 func validatePageEntryGroup(xRefTable *model.XRefTable, d types.Dict, required bool, sinceVersion model.Version) error {
 
 	if xRefTable.ValidationMode == model.ValidationRelaxed {
-		sinceVersion = model.V13
+		sinceVersion = model.V12
 	}
 
 	d1, err := validateDictEntry(xRefTable, d, "pageDict", "Group", required, sinceVersion, nil)

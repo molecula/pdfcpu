@@ -580,7 +580,11 @@ func validateImageStreamDict(xRefTable *model.XRefTable, sd *types.StreamDict, i
 	}
 
 	// OC, dict, optional since V1.5
-	return validateEntryOC(xRefTable, sd.Dict, dictName, "OC", OPTIONAL, model.V15)
+	sinceVersion = model.V15
+	if xRefTable.ValidationMode == model.ValidationRelaxed {
+		sinceVersion = model.V12
+	}
+	return validateEntryOC(xRefTable, sd.Dict, dictName, "OC", OPTIONAL, sinceVersion)
 }
 
 func validateFormStreamDictPart1(xRefTable *model.XRefTable, sd *types.StreamDict, dictName string) error {
@@ -708,7 +712,7 @@ func validateFormStreamDictPart2(xRefTable *model.XRefTable, d types.Dict, dictN
 	// Specifying the optional content properties for the annotation.
 	sinceVersion := model.V15
 	if xRefTable.ValidationMode == model.ValidationRelaxed {
-		sinceVersion = model.V13
+		sinceVersion = model.V12
 	}
 	err = validateOptionalContent(xRefTable, d, dictName, "OC", OPTIONAL, sinceVersion)
 	if err != nil {
