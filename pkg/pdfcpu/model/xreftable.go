@@ -975,6 +975,9 @@ func (xRefTable *XRefTable) SetBeingValidated(ir types.IndirectRef) error {
 // DereferenceStreamDict resolves a stream dictionary object.
 func (xRefTable *XRefTable) DereferenceStreamDict(o types.Object) (*types.StreamDict, bool, error) {
 	// TODO Check if we still need the bool return value
+	if o == nil {
+		return nil, false, nil
+	}
 	indRef, ok := o.(types.IndirectRef)
 	if !ok {
 		sd, ok := o.(types.StreamDict)
