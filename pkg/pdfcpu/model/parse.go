@@ -209,6 +209,92 @@ func balancedParenthesesPrefix(s string) int {
 
 	}
 
+	// If we reach here, the string is unbalanced
+	// For malformed PDFs in relaxed mode, find where the string should end
+	// Strategy: Look for common PDF delimiters after parentheses
+
+	// Reset and scan to find the last ) and check what follows
+	lastParen := -1
+	j = 0
+	escaped = false
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+
+		if !escaped && c == '\\' {
+			escaped = true
+			continue
+		}
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if c == '(' {
+			j++
+		}
+
+		if c == ')' {
+			lastParen = i
+			j--
+		}
+	}
+
+	// If we found at least one closing paren and the imbalance is small (only 1-2 extra opens)
+	// use the last closing paren we found
+	if lastParen >= 0 && j > 0 && j <= 2 {
+		return lastParen
+	}
+
+	// As a last resort for very malformed PDFs, if the string starts with ( and has some content,
+	// look for the next major PDF delimiter (like << >> [ ] or newline) and assume the string ends before it
+	if j > 0 && len(s) > 1 {
+		// Look for PDF delimiters that would indicate the string ended
+		escaped = false
+		for i := 1; i < len(s); i++ {
+			c := s[i]
+
+			// Track escape state properly while scanning
+			if !escaped && c == '\\' {
+				escaped = true
+				continue
+			}
+
+			if escaped {
+				escaped = false
+				continue
+			}
+
+			// Look for PDF delimiters (but not escaped ones)
+			if c == '<' && i+1 < len(s) && s[i+1] == '<' {
+				// Found <<, string probably ends before this
+				return i - 1
+			}
+			if c == '>' && i+1 < len(s) && s[i+1] == '>' {
+				// Found >>, string probably ends before this
+				return i - 1
+			}
+			if c == '\n' {
+				// Newline followed by non-space might indicate end
+				if i > 100 && i+1 < len(s) {
+					next := s[i+1]
+					// If next char after newline is a PDF token start, likely end of string
+					if next == '/' || next == '<' || next == '[' || (next >= '0' && next <= '9') {
+						return i - 1
+					}
+				}
+			}
+		}
+
+		// Ultimate fallback: if we have a long string with no delimiters and no closing paren,
+		// it's likely the PDF is severely malformed. Use the end of the string as the closing position.
+		// This is very lenient but necessary for some broken PDFs.
+		if len(s) > 100 {
+			return len(s) - 1
+		}
+	}
+
 	return -1
 }
 
