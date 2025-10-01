@@ -23,8 +23,11 @@ func main() {
 	conf.ValidationMode = model.ValidationRelaxed
 	conf.Offline = true
 	conf.Optimize = false
+	conf.DecodeAllStreams = false
+	conf.WriteXRefStream = false
 
-	// Trim to the first 5 pages (1-5)
+	// Trim directly without optimization
+	fmt.Println("Trimming PDF to pages 1-5...")
 	err := api.TrimFile(inFile, outFile, []string{"1-5"}, conf)
 	if err != nil {
 		log.Fatalf("Error extracting pages: %v", err)

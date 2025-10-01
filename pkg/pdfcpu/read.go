@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -547,7 +548,21 @@ func extractXRefTableEntriesFromXRefStream(buf []byte, offExtra int64, xsd *type
 	}
 
 	if xrefEntryLen != 0 && len(buf)%xrefEntryLen > 0 {
-		return errors.New("pdfcpu: extractXRefTableEntriesFromXRefStream: corrupt xrefstream")
+		// In relaxed mode, truncate buffer to the nearest complete entry
+		if ctx.XRefTable.ValidationMode == model.ValidationRelaxed {
+			truncatedLen := (len(buf) / xrefEntryLen) * xrefEntryLen
+			if truncatedLen > 0 {
+				if log.ReadEnabled() {
+					log.Read.Printf("extractXRefTableEntriesFromXRefStream: truncating buffer from %d to %d bytes\n", len(buf), truncatedLen)
+				}
+				model.ShowRepaired(fmt.Sprintf("xrefstream buffer truncated from %d to %d bytes", len(buf), truncatedLen))
+				buf = buf[:truncatedLen]
+			} else {
+				return errors.New("pdfcpu: extractXRefTableEntriesFromXRefStream: corrupt xrefstream")
+			}
+		} else {
+			return errors.New("pdfcpu: extractXRefTableEntriesFromXRefStream: corrupt xrefstream")
+		}
 	}
 
 	objCount := len(xsd.Objects)
@@ -558,7 +573,23 @@ func extractXRefTableEntriesFromXRefStream(buf []byte, offExtra int64, xsd *type
 	if len(buf) < objCount*xrefEntryLen {
 		// Sometimes there is an additional xref entry not accounted for by "Index".
 		// We ignore such entries and do not treat this as an error.
-		return errors.New("pdfcpu: extractXRefTableEntriesFromXRefStream: corrupt xrefstream")
+		// In relaxed mode, try to process what we have
+		if ctx.XRefTable.ValidationMode == model.ValidationStrict {
+			return errors.New("pdfcpu: extractXRefTableEntriesFromXRefStream: corrupt xrefstream")
+		}
+		// Adjust objCount to match available data
+		availableEntries := len(buf) / xrefEntryLen
+		if availableEntries > 0 && availableEntries < objCount {
+			if log.ReadEnabled() {
+				log.Read.Printf("extractXRefTableEntriesFromXRefStream: partial xrefstream, processing %d of %d entries\n", availableEntries, objCount)
+			}
+			model.ShowRepaired(fmt.Sprintf("partial xrefstream: processing %d of %d entries", availableEntries, objCount))
+			// Truncate the objects list to what we can actually process
+			xsd.Objects = xsd.Objects[:availableEntries]
+			objCount = availableEntries
+		} else {
+			return errors.New("pdfcpu: extractXRefTableEntriesFromXRefStream: corrupt xrefstream")
+		}
 	}
 
 	j := 0
@@ -636,7 +667,18 @@ func xRefStreamDict(c context.Context, ctx *model.Context, o types.Object, objNr
 
 	// Decode xrefstream content
 	if err = saveDecodedStreamContent(nil, &sd, 0, 0, true); err != nil {
-		return nil, errors.Wrapf(err, "xRefStreamDict: cannot decode stream for obj#:%d\n", objNr)
+		// If we get EOF during decode, try to use the partial content we have
+		if err == io.EOF || err == io.ErrUnexpectedEOF || strings.Contains(err.Error(), "EOF") {
+			if log.ReadEnabled() {
+				log.Read.Printf("xRefStreamDict: EOF during decode for obj#:%d, trying to use partial content\n", objNr)
+			}
+			// Use whatever content we have decoded so far
+			if len(sd.Content) == 0 {
+				sd.Content = sd.Raw
+			}
+		} else {
+			return nil, errors.Wrapf(err, "xRefStreamDict: cannot decode stream for obj#:%d\n", objNr)
+		}
 	}
 
 	return model.ParseXRefStreamDict(&sd)
@@ -2448,12 +2490,46 @@ func decompressXRefTableEntry(xRefTable *model.XRefTable, objNr int, entry *mode
 	// Resolve xRefTable entry of referenced object stream.
 	objectStreamXRefTableEntry, ok := xRefTable.Find(*entry.ObjectStream)
 	if !ok {
+		// In relaxed mode, mark entry as free if object stream is missing
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			if log.ReadEnabled() {
+				log.Read.Printf("decompressXRefTableEntry: object stream %d not found, marking obj#%d as free\n", *entry.ObjectStream, objNr)
+			}
+			entry.Free = true
+			entry.Compressed = false
+			if entry.Generation == nil {
+				g := 65535
+				entry.Generation = &g
+			}
+			if entry.Offset == nil {
+				off := int64(0)
+				entry.Offset = &off
+			}
+			return nil
+		}
 		return errors.Errorf("decompressXRefTableEntry: problem dereferencing object stream %d, no xref table entry", *entry.ObjectStream)
 	}
 
 	// Object of this entry has to be a ObjectStreamDict.
 	sd, ok := objectStreamXRefTableEntry.Object.(types.ObjectStreamDict)
 	if !ok {
+		// In relaxed mode, mark entry as free if object stream is not valid
+		if xRefTable.ValidationMode == model.ValidationRelaxed {
+			if log.ReadEnabled() {
+				log.Read.Printf("decompressXRefTableEntry: object stream %d is not ObjectStreamDict, marking obj#%d as free\n", *entry.ObjectStream, objNr)
+			}
+			entry.Free = true
+			entry.Compressed = false
+			if entry.Generation == nil {
+				g := 65535
+				entry.Generation = &g
+			}
+			if entry.Offset == nil {
+				off := int64(0)
+				entry.Offset = &off
+			}
+			return nil
+		}
 		return errors.Errorf("decompressXRefTableEntry: problem dereferencing object stream %d, no object stream", *entry.ObjectStream)
 	}
 
@@ -2544,6 +2620,13 @@ func decodeObjectStreamObjects(c context.Context, sd *types.StreamDict, objNr in
 func decodeObjectStream(c context.Context, ctx *model.Context, objNr int) error {
 	entry := ctx.Table[objNr]
 	if entry == nil {
+		// In relaxed mode, skip missing entries (may have been lost due to xrefstream truncation)
+		if ctx.XRefTable.ValidationMode == model.ValidationRelaxed {
+			if log.ReadEnabled() {
+				log.Read.Printf("decodeObjectStream: skipping missing entry for obj#%d\n", objNr)
+			}
+			return nil
+		}
 		return errors.Errorf("decodeObjectStream: missing entry for obj#%d\n", objNr)
 	}
 
