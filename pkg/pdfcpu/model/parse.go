@@ -351,7 +351,7 @@ func ParseObjectAttributes(line *string) (objectNumber *int, generationNumber *i
 
 	objNr, err := strconv.Atoi(l[:i])
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "pdfcpu: ParseObjectAttributes: invalid object number %q", l[:i])
 	}
 
 	// generation number
@@ -369,7 +369,7 @@ func ParseObjectAttributes(line *string) (objectNumber *int, generationNumber *i
 
 	genNr, err := strconv.Atoi(l[:i])
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "pdfcpu: ParseObjectAttributes: invalid generation number %q", l[:i])
 	}
 
 	objectNumber = &objNr

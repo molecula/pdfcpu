@@ -1367,6 +1367,14 @@ func parseAndLoad(c context.Context, ctx *model.Context, line string, offset *in
 	l := line
 	objNr, generation, err := model.ParseObjectAttributes(&l)
 	if err != nil {
+		if ctx.XRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, skip corrupt object definitions
+			if log.ReadEnabled() {
+				log.Read.Printf("parseAndLoad: skipping corrupt object definition: %v\n", err)
+			}
+			*offset += int64(len(line) + ctx.Read.EolCount)
+			return nil
+		}
 		return err
 	}
 
@@ -2099,6 +2107,13 @@ func object(c context.Context, ctx *model.Context, offset int64, objNr, genNr in
 	// Parse object number and object generation.
 	var objectNr, generationNr *int
 	if objectNr, generationNr, err = model.ParseObjectAttributes(&l); err != nil {
+		if ctx.XRefTable.ValidationMode == model.ValidationRelaxed {
+			// In relaxed mode, skip corrupt object definitions
+			if log.ReadEnabled() {
+				log.Read.Printf("object: skipping corrupt object attributes: %v\n", err)
+			}
+			return nil, 0, 0, 0, nil
+		}
 		return nil, 0, 0, 0, err
 	}
 
